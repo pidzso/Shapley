@@ -1,8 +1,11 @@
 import numpy as np
 import scipy as sc
 import math
+import os
+import sys
 from sklearn.metrics import mean_squared_error
 from itertools import product
+import matplotlib.pyplot as plt
 
 
 def shapley(clients, groups, acc):
@@ -30,7 +33,6 @@ def shapley(clients, groups, acc):
             tmp += weight * marginal_contribution
         scores[i] = tmp
     return scores
-
 
 
 def ppce(clients, groups, acc):
@@ -169,6 +171,52 @@ def avg_approx(w_total, w_ee, w_se, clients, type, mc):
             'ee': [np.round(e_ee / mc, 3), np.round(s_ee / mc, 3)],
             'total': [np.round(e_total / mc, 3), np.round(s_total / mc, 3)]}
 
+
+def weightplot(num, mc):
+    param = {}
+    for c in num:
+        param[c] = {'rand': {}, 'size': {}, 'cli': {}}
+        for s in ['rand', 'size', 'cli']:
+            param[c][s] = {'self': [], 'else': [], 'total': []}
+        for s in ['rand', 'size', 'cli']:
+            param[c][s]['self'], param[c][s]['else'], param[c][s]['total'] = optim(c, s, mc)
+    for t in ['self', 'else', 'total']:
+        if t == 'self':
+            label1 = 'I1i'
+            label2 = 'L1O'
+        if t == 'else':
+            label1 = 'IEEi'
+            label2 = 'LEEO'
+        if t == 'total':
+            label1 = 'I1i'
+            label2 = 'L1O'
+            label3 = 'IEEi'
+            label4 = 'LEEO'
+        for s in ['rand', 'size', 'cli']:
+            data = {label1: [param[c][s][t][0] for c in num], label2: [param[c][s][t][1] for c in num]}
+            if t == 'total':
+                data[label3] = [param[c][s][t][2] for c in num]
+                data[label4] = [param[c][s][t][3] for c in num]
+            x = np.arange(len(num))
+            width = 0.25 / (len(data.keys())/2)
+            multiplier = 0
+            fig, ax = plt.subplots(layout='constrained')
+            for method, weights in data.items():
+                offset = width * multiplier
+                rects = ax.bar(x + offset, weights, width, label=method)
+                ax.bar_label(rects, padding=3)
+                multiplier += 1
+            ax.set_ylabel('Weights')
+            ax.set_title(t + '-based evaluation for the ' + s + '-game')
+            ax.set_xticks(x + width, num)
+            ax.legend(loc='upper right', ncols=3)
+            #plt.show()
+            plt.savefig(os.path.abspath(sys.argv[0])[:-14] + "\\plots\\weights_" + t + '_' + s + ".png", dpi=300, bbox_inches='tight')
+            plt.close()
+    return 0
+
+
+weightplot([3, 4, 5, 6], 10000)
 
 w_s_r3, w_e_r3, w_t_r3 = optim(3, 'rand', 1000)
 w_s_s3, w_e_s3, w_t_s3 = optim(3, 'size', 1000)
