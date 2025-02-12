@@ -1,8 +1,6 @@
 import numpy as np
 import scipy as sc
-import math
-import os
-import sys
+import math, os, sys
 from sklearn.metrics import mean_squared_error
 from itertools import product
 import matplotlib.pyplot as plt
@@ -11,10 +9,10 @@ import matplotlib.pyplot as plt
 def shapley(clients, groups, acc):
     '''
     compute the Shapley Value
-        (input)  clients: client number
-        (input)  groups:  coalitions with binary assignment matrix, e.g. for 2 players [[0,0],[1,0],[0,1],[1,1]]
-        (input)  acc:     accuracies of the corresponding groups, e.g., for two players [a, b, c, d]
-        (output) score:   Shapley value of the players
+    (input)  clients: client number
+    (input)  groups:  coalitions with binary assignment matrix, e.g. for 2 players [[0,0],[1,0],[0,1],[1,1]]
+    (input)  acc:     accuracies of the corresponding groups, e.g., for two players [a, b, c, d]
+    (output) score:   Shapley value of the players
     '''
     scores = np.zeros(clients)
     for i in range(clients):
@@ -35,16 +33,16 @@ def shapley(clients, groups, acc):
     return scores
 
 
-def ppce(clients, groups, acc):
+def pri_ce(clients, groups, acc):
     '''
     compute the privacy-preserving contribution scores
-        (input)  clients: client number
-        (input)  groups:  coalitions with binary assignment matrix, e.g. for 2 players [[0,0],[1,0],[0,1],[1,1]]
-        (input)  acc:     accuracies of the corresponding groups, e.g., for two players [a, b, c, d]
-        (output) i1i:     include-one-in
-        (output) l1o:     leave-one-out
-        (output) ieei:    include-everybody-else-in
-        (output) leeo:    leave-everybody-else-out
+    (input) clients: client number
+    (input) groups:  coalitions with binary assignment matrix, e.g. for 2 players [[0,0],[1,0],[0,1],[1,1]]
+    (input) acc:     accuracies of the corresponding groups, e.g., for two players [a, b, c, d]
+    (output) i1i:  include-one-in
+    (output) l1o:  leave-one-out
+    (output) ieei: include-everybody-else-in
+    (output) leeo: leave-everybody-else-out
     '''
     i1i = np.zeros(clients)
     l1o = np.zeros(clients)
@@ -74,189 +72,184 @@ def ppce(clients, groups, acc):
     return i1i, l1o, ieei / (clients - 1) ** 2, leeo / (clients - 1) ** 2
 
 
-def optim(clients, type, mc):
+def simulate_game(type, clients):
     '''
-    computing the optimal linear combination to approximate the Shapley
+    generating coalitions and assigning to them scores according to one of the three rules
     (input) clients: number of clients
     (input) type:    assigning random / size-based / client-based noise to the coalitions
         'rand' - assign uniform random scores to the coalitions
         'size' - assign cardinality-based Gauss noise to the coalitions
         'cli'  - assign uniform random integers to the clients and add Gauss noise to the coalitions
-    (input) mc:      number of MonteCarlo simulations
-    (output) se:     optimal weights for self evaluation - i1i & l1o
-    (output) ee:     optimal weights for everybody else  - ieei & leeo
-    (output) total:  optimal weights for total combination - i1i & l1o & ieei & leeo
+    (output) groups: binary assignment matrix determining all coalitions
+    (output) acc:    accuracies corresponding to the coalitions
     '''
-    weights_self = [0, 0]
-    weights_else = [0, 0]
-    weights_total = [0, 0, 0, 0]
-    for i in range(mc):
-        groups = [list(seq) for seq in product([0, 1], repeat=clients)]
-        if type == 'rand':
-            acc = np.random.rand(2 ** clients)
-        elif type == 'size':
-            acc = [np.random.normal(np.sum(k), 1) for k in groups]
-        elif type == 'cli':
-            acc = np.zeros(2 ** clients)
-            cli = [np.random.randint(clients) for j in range(clients)]
-            for j, l in enumerate(acc):
-                for k in range(clients):
-                    if groups[j][k] == 1:
-                        acc[j] += np.random.normal(cli[k], 1)
-        SV = shapley(clients, groups, acc)
-        i1i, l1o, ieei, leeo = ppce(clients, groups, acc)
-        X_self = np.transpose([i1i, l1o])
-        weights_self += np.linalg.lstsq(X_self, SV, rcond=None)[0]
-        X_else = np.transpose([ieei, leeo])
-        weights_else += np.linalg.lstsq(X_else, SV, rcond=None)[0]
-        X_total = np.transpose([i1i, l1o, ieei, leeo])
-        weights_total += np.linalg.lstsq(X_total, SV, rcond=None)[0]
-    return np.round(weights_self / mc, 3), np.round(weights_else / mc, 3), np.round(weights_total / mc, 3)
+    groups = [list(seq) for seq in product([0, 1], repeat=clients)]
+    if type == 'rand':
+        acc = np.random.rand(2 ** clients)
+    elif type == 'size':
+        acc = [np.random.normal(np.sum(k), 1) for k in groups]
+    elif type == 'cli':
+        acc = np.zeros(2 ** clients)
+        cli = [np.random.randint(clients) for j in range(clients)]
+        for j, l in enumerate(acc):
+            for k in range(clients):
+                if groups[j][k] == 1:
+                    acc[j] += np.random.normal(cli[k], 1)
+    return groups, acc
 
 
-def avg_approx(w_total, w_ee, w_se, clients, type, mc):
+def combine(clients, groups, acc):
     '''
-    computing the least square error and the Spearman coeficient for the various SV approximations
-    (input) w_total: optimal weights for i1i & l1o & ieei & leeo combination
+    computing the optimal linear combination to approximate the Shapley
+    (input)  clients: client number
+    (input)  groups:  coalitions with binary assignment matrix, e.g. for 2 players [[0,0],[1,0],[0,1],[1,1]]
+    (input)  acc:     accuracies of the corresponding groups, e.g., for two players [a, b, c, d]
+    (output) weights: optimal weights
+    - se:   optimal weights for self evaluation (i1i & l1o)
+    - ee:   optimal weights for everybody else (ieei & leeo)
+     -ppce: optimal weights for total combination (i1i & l1o & ieei & leeo)
+    (output) values: contribution scores
+    - sv, i1i, l1o, ieei, leeo, se, ee, ppce
+    '''
+    SV = shapley(clients, groups, acc)
+    i1i, l1o, ieei, leeo = pri_ce(clients, groups, acc)
+    X_self = np.transpose([i1i, l1o])
+    weights_se = np.linalg.lstsq(X_self, SV, rcond=None)[0]
+    X_else = np.transpose([ieei, leeo])
+    weights_ee = np.linalg.lstsq(X_else, SV, rcond=None)[0]
+    X_total = np.transpose([i1i, l1o, ieei, leeo])
+    weights_ppce = np.linalg.lstsq(X_total, SV, rcond=None)[0]
+    return {'weights': {'se': weights_se, 'ee': weights_ee, 'ppce': weights_ppce},
+            'values': {'sv': SV, 'i1i': i1i, 'l1o': l1o, 'ieei': ieei, 'leeo': leeo,
+                       'se': (weights_se[0]) * i1i + (weights_se[1]) * l1o,
+                       'ee': (weights_ee[0]) * ieei + (weights_ee[1]) * leeo,
+                        'ppce': (weights_ppce[0]) * i1i + (weights_ppce[1]) * l1o +
+                                (weights_ppce[2]) * ieei +(weights_ppce[3]) * leeo}}
+
+
+def error_comp(w_ppce, w_ee, w_se, clients, groups, acc):
+    '''
+    computing the least square error and the Spearman coefficient for the various SV approximations
+    (input) w_ppce:  optimal weights for i1i & l1o & ieei & leeo combination
     (input) w_ee:    optimal weights for ieei & leeo combination
     (input) w_se:    optimal weights for i1i & l1o combination
     (input) clients: number of clients
-    (input) type:    assigning random / size-based / client-based noise to the coalitions
-        'rand' - assign uniform random scores to the coalitions
-        'size' - assign cardinality-based Gauss noise to the coalitions
-        'cli'  - assign uniform random integers to the clients and add Gauss noise to the coalitions
-    (input) mc:      number of MonteCarlo simulations
-    (output) {method: LeastSquareError, SpearmanCoefficient}
-        'i1i' - 'l1o' - 'ieei' - 'leeo' - 'se' - 'ee' - 'total'
+    (input) type:    how to assign score to the coalitions
+        'rand|size|cli' - use random distribution
+        'cust'          - use given groups & accuracies
+    (output) LeastSquareError: smaller the better, min 0
+    - sv, i1i, l1o, ieei, leeo, se, ee, ppce
+    (output) SpearmanCoefficient: higher the better, max 1
+    - sv, i1i, l1o, ieei, leeo, se, ee, ppce
     '''
-    e_i1i, s_i1i, s_l1o, e_l1o, s_ieei, e_ieei, s_leeo, e_leeo, s_se, e_se, s_ee, e_ee, s_total, e_total = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    for i in range(mc):
-        groups = [list(seq) for seq in product([0, 1], repeat=clients)]
-        if type == 'rand':
-            acc = np.random.rand(2 ** clients)
-        elif type == 'size':
-            acc = [np.random.normal(np.sum(k), 1) for k in groups]
-        elif type == 'cli':
-            acc = np.zeros(2 ** clients)
-            cli = [np.random.randint(clients) for j in range(clients)]
-            for j, l in enumerate(acc):
-                for k in range(clients):
-                    if groups[j][k] == 1:
-                        acc[j] += np.random.normal(cli[k], 1)
-        SV = shapley(clients, groups, acc)
-        i1i, l1o, ieei, leeo = ppce(clients, groups, acc)
-        se = np.add(w_se[0] * i1i, w_se[1] * l1o)
-        ee = np.add(w_ee[0] * ieei, w_ee[1] * leeo)
-        total = np.add(np.add(w_total[0] * i1i, w_total[1] * l1o),
-                       np.add(w_total[2] * ieei, w_total[3] * leeo))
-        e_i1i += mean_squared_error(SV, i1i, squared=False)
-        e_l1o += mean_squared_error(SV, l1o, squared=False)
-        e_ieei += mean_squared_error(SV, ieei, squared=False)
-        e_leeo += mean_squared_error(SV, leeo, squared=False)
-        e_se += mean_squared_error(SV, se, squared=False)
-        e_ee += mean_squared_error(SV, ee, squared=False)
-        e_total += mean_squared_error(SV, total, squared=False)
-        s_i1i += sc.stats.spearmanr(SV, i1i)[0]
-        s_l1o += sc.stats.spearmanr(SV, l1o)[0]
-        s_ieei += sc.stats.spearmanr(SV, ieei)[0]
-        s_leeo += sc.stats.spearmanr(SV, leeo)[0]
-        s_se += sc.stats.spearmanr(SV, se)[0]
-        s_ee += sc.stats.spearmanr(SV, ee)[0]
-        s_total += sc.stats.spearmanr(SV, total)[0]
-    return {'i1i': [np.round(e_i1i / mc, 3), np.round(s_i1i / mc, 3)],
-            'l1o': [np.round(e_l1o / mc, 3), np.round(s_l1o / mc, 3)],
-            'ieei': [np.round(e_ieei / mc, 3), np.round(s_ieei / mc, 3)],
-            'leeo': [np.round(e_leeo / mc, 3), np.round(s_leeo / mc, 3)],
-            'se': [np.round(e_se / mc, 3), np.round(s_se / mc, 3)],
-            'ee': [np.round(e_ee / mc, 3), np.round(s_ee / mc, 3)],
-            'total': [np.round(e_total / mc, 3), np.round(s_total / mc, 3)]}
+    sv = shapley(clients, groups, acc)
+    i1i, l1o, ieei, leeo = pri_ce(clients, groups, acc)
+    se = np.add(w_se[0] * i1i, w_se[1] * l1o)
+    ee = np.add(w_ee[0] * ieei, w_ee[1] * leeo)
+    ppce = np.add(np.add(w_ppce[0] * i1i, w_ppce[1] * l1o),
+                   np.add(w_ppce[2] * ieei, w_ppce[3] * leeo))
+    return {'lse': [mean_squared_error(sv, i1i, squared=False), mean_squared_error(sv, l1o, squared=False),
+                    mean_squared_error(sv, ieei, squared=False), mean_squared_error(sv, leeo, squared=False),
+                    mean_squared_error(sv, se, squared=False), mean_squared_error(sv, ee, squared=False),
+                    mean_squared_error(sv, ppce, squared=False)],
+            'sc': [sc.stats.spearmanr(sv, i1i)[0], sc.stats.spearmanr(sv, l1o)[0],
+                   sc.stats.spearmanr(sv, ieei)[0], sc.stats.spearmanr(sv, leeo)[0],
+                   sc.stats.spearmanr(sv, se)[0], sc.stats.spearmanr(sv, ee)[0],
+                   sc.stats.spearmanr(sv, ppce)[0]]}
 
 
-def weightplot(num, mc):
+def plot_pri_ce(clients, groups, acc):
     '''
-    plot the weights (client number)-wise for the 3 combinations and for 3 games
-        (input) num: set of client numbers
-        (input) mc:  number of MonteCarlo simulations
-        (output) save: the weight used in SE, EE, and total for rand, size, and cli game
-                 form: plots/ + self|else|total + _ + rand|size|cli + .png
+    plotting i1i, l1o, ieei, leeo, and the sv for the given game
+    (input)  clients: client number
+    (input)  groups:  coalitions with binary assignment matrix, e.g. for 2 players [[0,0],[1,0],[0,1],[1,1]]
+    (input)  acc:     accuracies of the corresponding groups, e.g., for two players [a, b, c, d]
+    (output) plt:     the contribution values method-wise for each client
     '''
-    param = {}
-    for c in num:
-        param[c] = {'rand': {}, 'size': {}, 'cli': {}}
-        for s in ['rand', 'size', 'cli']:
-            param[c][s] = {'self': [], 'else': [], 'total': []}
-        for s in ['rand', 'size', 'cli']:
-            param[c][s]['self'], param[c][s]['else'], param[c][s]['total'] = optim(c, s, mc)
-    for t in ['self', 'else', 'total']:
-        if t == 'self':
-            label1, label2 = 'I1i', 'L1O'
-        if t == 'else':
-            label1, label2 = 'IEEi', 'LEEO'
-        if t == 'total':
-            label1, label2, label3, label4 = 'I1i', 'L1O', 'IEEi', 'LEEO'
-        for s in ['rand', 'size', 'cli']:
-            data = {label1: [param[c][s][t][0] for c in num], label2: [param[c][s][t][1] for c in num]}
-            if t == 'total':
-                data[label3] = [param[c][s][t][2] for c in num]
-                data[label4] = [param[c][s][t][3] for c in num]
-            x = np.arange(len(num))
-            width = 0.25 / (len(data.keys())/2)
-            multiplier = 0
-            fig, ax = plt.subplots(layout='constrained')
-            for method, weights in data.items():
-                offset = width * multiplier
-                rects = ax.bar(x + offset, weights, width, label=method)
-                ax.bar_label(rects, padding=3)
-                multiplier += 1
-            ax.set_ylabel('Weights', fontsize='x-large')
-            ax.set_title(t + '-based evaluation for the ' + s + '-game', fontsize='x-large')
-            ax.set_xticks(x + (len(data.keys()) - 1) * width / 2, num)
-            ax.legend(loc='upper center', fontsize='x-large', ncols=len(data.keys()))
-            #ax.set_ylim(-1, 2)
-            #plt.show()
-            plt.savefig(os.path.abspath(sys.argv[0])[:-14] + "\\plots\\weights_" + t + '_' + s + ".png", dpi=300, bbox_inches='tight')
-            plt.close()
-    return 0
+    sv = shapley(clients, groups, acc)
+    i1i, l1o, ieei, leeo = pri_ce(clients, groups, acc)
+    values = {'i1i': i1i, 'l1o': l1o, 'ieei': ieei, 'leeo': leeo, 'sv': sv}
+    tmp = {}
+    for n in range(clients):
+        tmp[n] = [value[n] for key, value in values.items()]
+    x = np.arange(clients)
+    width = 0.15
+    multiplier = 0
+    fig, ax = plt.subplots(layout='constrained')
+    for method, value in values.items():
+        offset = width * multiplier
+        rects = ax.bar(x + offset, value, width, label=method)
+        ax.bar_label(rects, padding=3)
+        multiplier += 1
+    ax.set_ylabel('Values')
+    ax.set_title('Contribution scores')
+    ax.set_xticks(x + 2 * width, range(clients))
+    ax.legend(loc='upper center', ncols=5)
+    return plt
 
 
-weightplot([3, 4, 5, 6], 10000)
+def plot_pri_comb(clients, groups, acc):
+    '''
+    plotting i1i, l1o, ieei, leeo, se, ee, ppce, and the sv for the given game
+    (input)  clients: client number
+    (input)  groups:  coalitions with binary assignment matrix, e.g. for 2 players [[0,0],[1,0],[0,1],[1,1]]
+    (input)  acc:     accuracies of the corresponding groups, e.g., for two players [a, b, c, d]
+    (output) plt:     the contribution values method-wise for each client
+    '''
+    sv = shapley(clients, groups, acc)
+    i1i, l1o, ieei, leeo = pri_ce(clients, groups, acc)
+    tmp = combine(clients, groups, acc)
+    values = {'sv': sv, 'i1i': i1i, 'l1o': l1o, 'ieei': ieei, 'leeo': leeo,
+              'se': tmp['values']['se'], 'ee': tmp['values']['ee'], 'ppce': tmp['values']['ppce']}
+    tmp = {}
+    for n in range(clients):
+        tmp[n] = [value[n] for key, value in values.items()]
+    x = np.arange(clients)
+    width = 0.1
+    multiplier = 0
+    fig, ax = plt.subplots(layout='constrained')
+    for method, value in values.items():
+        offset = width * multiplier
+        rects = ax.bar(x + offset, value, width, label=method)
+        ax.bar_label(rects, padding=3)
+        multiplier += 1
+    ax.set_ylabel('Values')
+    ax.set_title('Contribution scores')
+    ax.set_xticks(x + 3.5 * width, range(clients))
+    ax.legend(loc='upper center', ncols=4)
+    return plt
 
-'''
-w_s_r3, w_e_r3, w_t_r3 = optim(3, 'rand', 1000)
-w_s_s3, w_e_s3, w_t_s3 = optim(3, 'size', 1000)
-w_s_c3, w_e_c3, w_t_c3 = optim(3, 'cli',  1000)
-w_s_r4, w_e_r4, w_t_r4 = optim(4, 'rand', 1000)
-w_s_s4, w_e_s4, w_t_s4 = optim(4, 'size', 1000)
-w_s_c4, w_e_c4, w_t_c4 = optim(4, 'cli',  1000)
-w_s_r5, w_e_r5, w_t_r5 = optim(5, 'rand', 1000)
-w_s_s5, w_e_s5, w_t_s5 = optim(5, 'size', 1000)
-w_s_c5, w_e_c5, w_t_c5 = optim(5, 'cli',  1000)
 
-print('3 clients')
-print('weights - se / ee / total')
-print('rand\t',  w_s_r3, w_e_r3, w_t_r3)
-print('size\t',  w_s_s3, w_e_s3, w_t_s3)
-print('cli\t\t', w_s_c3, w_e_c3, w_t_c3)
-print('i1i, l1i, ieei, leeo, se / ee / total - Error / Order')
-print(avg_approx(w_t_r3, w_e_r3, w_s_r3, 3, 'rand', 1000))
-print(avg_approx(w_t_s3, w_e_s3, w_s_s3, 3, 'size', 1000))
-print(avg_approx(w_t_c3, w_e_c3, w_s_c3, 3, 'cli', 1000))
-print('4 clients')
-print('weights - se / ee / total')
-print('rand\t',  w_s_r4, w_e_r4, w_t_r4)
-print('size\t',  w_s_s4, w_e_s4, w_t_s4)
-print('cli\t\t', w_s_c4, w_e_c4, w_t_c4)
-print('i1i, l1i, ieei, leeo, se / ee / total - Error / Order')
-print(avg_approx(w_t_r4, w_e_r4, w_s_r4, 4, 'rand', 1000))
-print(avg_approx(w_t_s4, w_e_s4, w_s_s4, 4, 'size', 1000))
-print(avg_approx(w_t_c4, w_e_c4, w_s_c4, 4, 'cli', 1000))
-print('4 clients')
-print('weights - se / ee / total')
-print('rand\t',  w_s_r5, w_e_r5, w_t_r5)
-print('size\t',  w_s_s5, w_e_s5, w_t_s5)
-print('cli\t\t',  w_s_c5, w_e_c5, w_t_c5)
-print('i1i, l1i, ieei, leeo, se / ee / total - Error / Order')
-print(avg_approx(w_t_r5, w_e_r5, w_s_r5, 5, 'rand', 1000))
-print(avg_approx(w_t_s5, w_e_s5, w_s_s5, 5, 'size', 1000))
-print(avg_approx(w_t_c5, w_e_c5, w_s_c5, 5, 'cli', 1000))
-'''
+def plot_pri_ce_perf(clients, groups, acc):
+    '''
+    plotting the Least Square Error and the Spearman coefficient of i1i, l1o, ieei, leeo for the given game
+    (input)  clients: client number
+    (input)  groups:  coalitions with binary assignment matrix, e.g. for 2 players [[0,0],[1,0],[0,1],[1,1]]
+    (input)  acc:     accuracies of the corresponding groups, e.g., for two players [a, b, c, d]
+    (output) plt:     the approximation accuracy for the contribution scores
+    '''
+    tmp = combine(clients, groups, acc)
+    errors = error_comp(tmp['weights']['ppce'], tmp['weights']['ee'], tmp['weights']['se'], clients, groups, acc)
+    x = np.arange(len(tmp['values']) - 1)
+    width = 0.2
+    multiplier = 0
+    fig, ax = plt.subplots(layout='constrained')
+    for method, error in errors.items():
+        offset = width * multiplier
+        rects = ax.bar(x + offset, error, width, label=method)
+        ax.bar_label(rects, padding=3)
+        multiplier += 1
+    ax.set_ylabel('Error & Correlation')
+    ax.set_title('Approximation accuracy')
+    ax.set_xticks(x + 0.5 * width, {key: value for key, value in tmp['values'].items() if key != 'sv'})
+    ax.legend(loc='upper center', ncols=len(tmp['values']) - 1)
+    return plt
+
+
+clients = 3
+type = 'cli'
+groups, acc = simulate_game(type, clients)
+plt = plot_pri_ce_perf(clients, groups, acc)
+plt.show()
+#plt.savefig(os.path.abspath(sys.argv[0])[:-14] + "\\plots\\" + X + ".png", dpi=300, bbox_inches='tight')
+plt.close()
