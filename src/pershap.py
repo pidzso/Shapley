@@ -173,6 +173,13 @@ def avg_approx(w_total, w_ee, w_se, clients, type, mc):
 
 
 def weightplot(num, mc):
+    '''
+    plot the weights (client number)-wise for the 3 combinations and for 3 games
+        (input) num: set of client numbers
+        (input) mc:  number of MonteCarlo simulations
+        (output) save: the weight used in SE, EE, and total for rand, size, and cli game
+                 form: plots/ + self|else|total + _ + rand|size|cli + .png
+    '''
     param = {}
     for c in num:
         param[c] = {'rand': {}, 'size': {}, 'cli': {}}
@@ -182,16 +189,11 @@ def weightplot(num, mc):
             param[c][s]['self'], param[c][s]['else'], param[c][s]['total'] = optim(c, s, mc)
     for t in ['self', 'else', 'total']:
         if t == 'self':
-            label1 = 'I1i'
-            label2 = 'L1O'
+            label1, label2 = 'I1i', 'L1O'
         if t == 'else':
-            label1 = 'IEEi'
-            label2 = 'LEEO'
+            label1, label2 = 'IEEi', 'LEEO'
         if t == 'total':
-            label1 = 'I1i'
-            label2 = 'L1O'
-            label3 = 'IEEi'
-            label4 = 'LEEO'
+            label1, label2, label3, label4 = 'I1i', 'L1O', 'IEEi', 'LEEO'
         for s in ['rand', 'size', 'cli']:
             data = {label1: [param[c][s][t][0] for c in num], label2: [param[c][s][t][1] for c in num]}
             if t == 'total':
@@ -206,10 +208,11 @@ def weightplot(num, mc):
                 rects = ax.bar(x + offset, weights, width, label=method)
                 ax.bar_label(rects, padding=3)
                 multiplier += 1
-            ax.set_ylabel('Weights')
-            ax.set_title(t + '-based evaluation for the ' + s + '-game')
-            ax.set_xticks(x + width, num)
-            ax.legend(loc='upper right', ncols=3)
+            ax.set_ylabel('Weights', fontsize='x-large')
+            ax.set_title(t + '-based evaluation for the ' + s + '-game', fontsize='x-large')
+            ax.set_xticks(x + (len(data.keys()) - 1) * width / 2, num)
+            ax.legend(loc='upper center', fontsize='x-large', ncols=len(data.keys()))
+            #ax.set_ylim(-1, 2)
             #plt.show()
             plt.savefig(os.path.abspath(sys.argv[0])[:-14] + "\\plots\\weights_" + t + '_' + s + ".png", dpi=300, bbox_inches='tight')
             plt.close()
@@ -218,6 +221,7 @@ def weightplot(num, mc):
 
 weightplot([3, 4, 5, 6], 10000)
 
+'''
 w_s_r3, w_e_r3, w_t_r3 = optim(3, 'rand', 1000)
 w_s_s3, w_e_s3, w_t_s3 = optim(3, 'size', 1000)
 w_s_c3, w_e_c3, w_t_c3 = optim(3, 'cli',  1000)
@@ -255,3 +259,4 @@ print('i1i, l1i, ieei, leeo, se / ee / total - Error / Order')
 print(avg_approx(w_t_r5, w_e_r5, w_s_r5, 5, 'rand', 1000))
 print(avg_approx(w_t_s5, w_e_s5, w_s_s5, 5, 'size', 1000))
 print(avg_approx(w_t_c5, w_e_c5, w_s_c5, 5, 'cli', 1000))
+'''
