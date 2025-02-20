@@ -285,8 +285,9 @@ if __name__ == "__main__":
     data_name="BRAIN"
     num_cli=3
     alpha=0.5
+    iter_global=10
+    iter_fed=10
     juegos=games(mol,data_name,num_cli,alpha) 
-    #juegos.simulation_fed_iter()
-    juegos.simulation_global_iter()#default iteration global 10, default iteration federated learning 10
+    juegos.simulation_global_iter(iter_global,iter_fed) #default iteration global 10, default iteration federated learning 10
 
 
