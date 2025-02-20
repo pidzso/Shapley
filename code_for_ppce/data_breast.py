@@ -11,12 +11,7 @@ from sklearn.preprocessing import StandardScaler
 np.random.seed(42)
 torch.manual_seed(42)
 # Function to split dataset into train and test
-import numpy as np
-import torch
-from torch.utils.data import DataLoader, TensorDataset, Subset
-from sklearn.datasets import load_breast_cancer
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+
 
 def dirichlet_partition(num_clients=5, alpha=0.5, test_size=0.2):
     # Load the dataset
