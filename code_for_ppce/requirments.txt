@@ -1,0 +1,9 @@
+torch 
+matplotlib
+torchvision
+numpy
+tqdm 
+logging
+sklearn
+scipy
+seaborn
