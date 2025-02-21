@@ -1,4 +1,5 @@
 import random
+import argparse
 import torch
 import numpy as np
 import torch.nn as nn
@@ -281,13 +282,25 @@ class games(federation):
 
     
 if __name__ == "__main__":
-    mol="CNN_brain"
-    data_name="BRAIN"
-    num_cli=3
-    alpha=0.5
-    iter_global=10
-    iter_fed=10
-    juegos=games(mol,data_name,num_cli,alpha) 
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Run the script with specified parameters.")
+    parser.add_argument("--data",      type=str, default="BRAIN",     help="Dataset for the experiment (default: BRAIN)")
+    parser.add_argument("--model",     type=str, default="CNN-brain", help="Model architecture for training (default: BRAIN)")
+    parser.add_argument("--dist",      type=int, default=0.5,         help="Dirichlet parameter for data distribution (default: 0.5)")
+    parser.add_argument("--numcli",    type=int, default=6,           help="Number of clients (default: 6)")
+    parser.add_argument("--globround", type=int, default=10,          help="Number of times a round is simulated (default: 10)")
+    parser.add_argument("--fedround",  type=int, default=10,          help="Training round for evaluation (default: 10)")
+    parser.add_argument("--eval",      type=str, default="global",    help="Evaluation of the coalitions (default: global)")
+    args = parser.parse_args()
+
+    mol         = args.model
+    data_name   = args.data
+    num_cli     = args.numcli
+    alpha       = args.dist
+    iter_global = args.fedround
+    iter_fed    = args.globround
+
+    juegos=games(mol,data_name,num_cli,alpha)
     juegos.simulation_global_iter(iter_global,iter_fed) #default iteration global 10, default iteration federated learning 10
 
 
