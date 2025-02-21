@@ -285,11 +285,11 @@ if __name__ == "__main__":
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Run the script with specified parameters.")
     parser.add_argument("--data",      type=str, default="BRAIN",     help="Dataset for the experiment (default: BRAIN)")
-    parser.add_argument("--model",     type=str, default="CNN-brain", help="Model architecture for training (default: BRAIN)")
+    parser.add_argument("--model",     type=str, default="CNN_brain", help="Model architecture for training (default: BRAIN)")
     parser.add_argument("--dist",      type=int, default=0.5,         help="Dirichlet parameter for data distribution (default: 0.5)")
-    parser.add_argument("--numcli",    type=int, default=6,           help="Number of clients (default: 6)")
-    parser.add_argument("--globround", type=int, default=10,          help="Number of times a round is simulated (default: 10)")
-    parser.add_argument("--fedround",  type=int, default=10,          help="Training round for evaluation (default: 10)")
+    parser.add_argument("--numcli",    type=int, default=3,           help="Number of clients (default: 6)")
+    parser.add_argument("--globround", type=int, default=1,          help="Number of times a round is simulated (default: 10)")
+    parser.add_argument("--fedround",  type=int, default=1,          help="Training round for evaluation (default: 10)")
     parser.add_argument("--eval",      type=str, default="global",    help="Evaluation of the coalitions (default: global)")
     args = parser.parse_args()
 
