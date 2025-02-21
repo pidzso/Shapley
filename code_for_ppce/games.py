@@ -1,4 +1,5 @@
 import random
+import os
 import argparse
 import torch
 import numpy as np
@@ -27,7 +28,6 @@ dev = torch.device(dev)
 class games(federation):
     def __init__(self, model_type, dataset_name, num_clients,alpha,device=dev):
         super().__init__(model_type, dataset_name, num_clients,alpha,device=dev)
-
     
     def coalitional_values_II(self,iteration, epochs=5):
         """Compute the evaluation of each coalition at iteration"""
@@ -51,8 +51,7 @@ class games(federation):
         trans=transform_dict_to_lists(d,self.num_clients)
         return trans
     
-    
-    
+
     def traing_together(self, num_epochs):
         """sort of function that does  fedAvg"""
         for client in self.lista_clientes:
@@ -61,7 +60,6 @@ class games(federation):
             client.fit(num_epochs)
         params = self.weighted_aggre(self.lista_clientes)
         self.set_parameters(params)
-       
 
     
     def coalicional_value_at_round(self,iter,epochs=5):
@@ -85,8 +83,6 @@ class games(federation):
         logger.info(f"at coalitional values: {d}")
         return d
 
-
-    
 
     def valores_por_rondas(self,itera,epochs=5):
             """
@@ -130,6 +126,7 @@ class games(federation):
             mean_values=[mean_sv,mean_i1i,mean_l1o, mean_ieei,mean_leeo,mean_se,mean_ee,mean_ppce]
             return games_pp,mean_values
 
+
     def statistic(self,iter_one,iter_two=10,epochs=5):
         """
         iter_one:number of iteration to run the federation several times 
@@ -169,7 +166,6 @@ class games(federation):
         arrays_mean=[np.array(rat_err_mean),np.array(spear_mean),np.array(pear_err_mean),np.array(kend_mean)]
         return arrays_lr,arrays_mean,valores,metrlr,metrmean
 
-        
 
     def boxplot(self,valores,path,name,metricas=["Normalize_lse","Spearman","Pearson","Kendall"]):
         # valores=self.valores_por_rondas(ite)
@@ -190,8 +186,6 @@ class games(federation):
             plot_boxplot_with_stats(big_list,["I1I","L1O","IE2I","LE2O","SE","EE","PPCE"],path,f"{metric}: {name}",f"{metric}: {name}")
         mean_stdlogger.info(f"{name}, {self.dataset_name}, {self.num_clients}, {self.alpha}")
 
-
-        
 
     def valor_rondas(self,itera,epochs=5):
             """
@@ -279,18 +273,17 @@ class games(federation):
         self.boxplot(transform_re[2],path1,"over_fed_rounds")
 
 
-
-    
-if __name__ == "__main__":
+if __name__ =="__main__":
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Run the script with specified parameters.")
     parser.add_argument("--data",      type=str, default="BRAIN",     help="Dataset for the experiment (default: BRAIN)")
     parser.add_argument("--model",     type=str, default="CNN_brain", help="Model architecture for training (default: BRAIN)")
     parser.add_argument("--dist",      type=int, default=0.5,         help="Dirichlet parameter for data distribution (default: 0.5)")
     parser.add_argument("--numcli",    type=int, default=3,           help="Number of clients (default: 6)")
-    parser.add_argument("--globround", type=int, default=1,          help="Number of times a round is simulated (default: 10)")
-    parser.add_argument("--fedround",  type=int, default=1,          help="Training round for evaluation (default: 10)")
+    parser.add_argument("--globround", type=int, default=1,           help="Number of times a round is simulated (default: 10)")
+    parser.add_argument("--fedround",  type=int, default=1,           help="Training round for evaluation (default: 10)")
     parser.add_argument("--eval",      type=str, default="global",    help="Evaluation of the coalitions (default: global)")
+    parser.add_argument("--locep",     type=int, default=5,           help="Number of local epochs within a round (default: 5)")
     args = parser.parse_args()
 
     mol         = args.model
@@ -300,7 +293,11 @@ if __name__ == "__main__":
     iter_global = args.fedround
     iter_fed    = args.globround
 
-    juegos=games(mol,data_name,num_cli,alpha)
+    # ToDo Include rounds into folder name
+    if not os.path.exists(str(args.clinum) + 'clients(' + str(args.dist) + ')_' + str(args.fedround) + 'rounds'):
+        os.makedirs(str(args.clinum) + 'clients(' + str(args.dist) + ')')
+
+    juegos = games(mol, data_name, num_cli, alpha)
     juegos.simulation_global_iter(iter_global,iter_fed) #default iteration global 10, default iteration federated learning 10
 
 

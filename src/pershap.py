@@ -287,11 +287,10 @@ def plot_pri_comb_perf(clients, groups, acc, opt=None):
     ax.legend(loc='upper center', ncols=len(errors['lse']))
     return plt
 
-
 clients = 3
 type = 'cli'
 groups, acc = simulate_game(type, clients)
 plt = plot_pri_ce_perf(clients, groups, acc)
 plt.show()
-#plt.savefig(os.path.abspath(sys.argv[0])[:-14] + "\\plots\\" + X + ".png", dpi=300, bbox_inches='tight')
+#plt.savefig(os.path.abspath(sys.argv[0])[:-14] + "\\PLOTS\\" + X + ".png", dpi=300, bbox_inches='tight')
 plt.close()
