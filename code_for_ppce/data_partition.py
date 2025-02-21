@@ -1,4 +1,5 @@
 import torch
+import os
 import numpy as np
 import torch.nn as nn
 import math
@@ -11,9 +12,9 @@ from collections import defaultdict
 import pathlib
 
 #path for mnist data set
-datamnist='/Users/delio/Documents/Working projects/Balazs/Experiments/MNIST/data_mnist'
+datamnist= os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/data/mnist/'
 #transform and path for brain data set
-source_dir= '/Users/delio/Documents/Working projects/Balazs/Experiments/Brain/archive'### path for brain data set
+source_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/data/brain/'
 source_dir = pathlib.Path(source_dir)
 #I have cifar10 in the local folder, so no need the path here. but in case place it here
 
