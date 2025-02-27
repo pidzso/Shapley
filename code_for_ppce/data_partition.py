@@ -10,6 +10,8 @@ from torch.utils.data import DataLoader, Subset
 import random
 from collections import defaultdict
 import pathlib
+from torch.utils.data import random_split
+from data_breast import commun_test_set
 
 #path for mnist data set
 datamnist= os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/data/mnist/'
