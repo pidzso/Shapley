@@ -4,9 +4,14 @@ from matplotlib.colors import ListedColormap
 import math
 import scipy.stats as sc
 import random
-from loggers import svlogger,ppcelogger,metricslogger
+from loggers import logger_f#metricslogger
 from itertools import combinations
 import seaborn as sns
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import pathlib
+
 
 
 
@@ -68,7 +73,7 @@ def combine_plot(groups=list, categories=list, path=str,title=str, name=str):
         plt.savefig(f'{path}/{name}')
 
 
-def shapley(clients, groups, acc):
+def shapley(clients, groups, acc, path,retraining=None):
         '''
         compute the Shapley Value
             (input)  clients: client number
@@ -92,12 +97,16 @@ def shapley(clients, groups, acc):
                 weight = (math.factorial(subset_size) * math.factorial(clients - subset_size - 1)) / math.factorial(clients)
                 tmp += weight * marginal_contribution
             scores[i] = tmp
-        svlogger.info(f"SV: {scores}")
-        return scores
+        if retraining==None:
+            logger_f(f"SV: {scores}",f"{path}/values/shapleys.log")
+        else:
+            logger_f(f"SV_retraining: {scores}",f"{path}/values/shapleys.log")
+        #svlogger.info(f"SV: {scores}")
+        return scores.tolist()
 
 
 
-def pri_ce(clients, groups, acc):
+def pri_ce(clients, groups, acc, path):
         '''
         compute the privacy-preserving contribution scores
             (input)  clients: client number
@@ -133,26 +142,85 @@ def pri_ce(clients, groups, acc):
                 leeo[i] += grand - include[j]
             ieei[i] -= leave[i] - null
             leeo[i] -= grand - include[i]
-        ie2i= ieei / (clients - 1) ** 2
-        le2o= leeo / (clients - 1) ** 2
+        ieei= ieei / (clients - 1) ** 2
+        leeo= leeo / (clients - 1) ** 2
         se = i1i + l1o
         ee = ieei + leeo
         ppce = se + ee
-        ppcelogger.info(f"i1i: {i1i.tolist()}")
-        ppcelogger.info(f"l10: {l1o.tolist()}")
-        ppcelogger.info(f"ie2i: {ie2i.tolist()}")
-        ppcelogger.info(f"le2o: {le2o.tolist()}")
-        ppcelogger.info(f"se: {se.tolist()}")
-        ppcelogger.info(f"ee: {ee.tolist()}")
-        ppcelogger.info(f"PPce: {ppce.tolist()}")
-        return [i1i.tolist(), l1o.tolist(), ie2i.tolist(), le2o.tolist(),se.tolist(),ee.tolist(),ppce.tolist()]
+        logger_f(f"i1i: {i1i.tolist()}",f"{path}/values/ppce_global.log")
+        logger_f(f"l10: {l1o.tolist()}",f"{path}/values/ppce_global.log")
+        logger_f(f"ie2i: {ieei.tolist()}",f"{path}/values/ppce_global.log")
+        logger_f(f"le2o: {leeo.tolist()}",f"{path}/values/ppce_global.log")
+        logger_f(f"se: {se.tolist()}",f"{path}/values/ppce_global.log")
+        logger_f(f"ee: {ee.tolist()}",f"{path}/values/ppce_global.log")
+        logger_f(f"PPce: {ppce.tolist()}",f"{path}/values/ppce_global.log")
+        return [i1i.tolist(), l1o.tolist(), ieei.tolist(), leeo.tolist(),se.tolist(),ee.tolist(),ppce.tolist()]
         #return i1i, l1o, ieei, leeo, se, ee, ppce    
 
 
-def normalize_list(lst):
-    min_val = min(lst)
-    max_val = max(lst)
-    return [(x - min_val) / (max_val - min_val) if max_val != min_val else 0 for x in lst]
+
+
+def effect(clients, groups, acc):
+        '''
+        compute the privacy-preserving contribution scores
+            (input)  clients: client number
+            (input)  groups:  coalitions with binary assignment matrix, e.g. for 2 players [[0,0],[1,0],[0,1],[1,1]]
+            (input)  acc:     accuracies of the corresponding groups, e.g., for two players [a, b, c, d]
+            (output) i1i:     include-one-in
+            (output) l1o:     leave-one-out
+            (output) ieei:    include-everybody-else-in
+            (output) leeo:    leave-everybody-else-out
+        '''
+        efieei = np.zeros((clients,clients))
+        efleeo = np.zeros((clients,clients))
+        ieei = np.zeros(clients)
+        leeo = np.zeros(clients)
+        include = np.zeros(clients)
+        leave = np.zeros(clients)
+        for i, subset in enumerate(groups):
+            if np.sum(subset) == 0:
+                null = acc[i]
+            if np.sum(subset) == clients:
+                grand = acc[i]
+            if np.sum(subset) == 1:
+                tmp = [j for j, k in enumerate(subset) if k == 1]
+                include[tmp[0]] = acc[i]
+            if np.sum(subset) == clients - 1:
+                tmp = [j for j, k in enumerate(subset) if k == 0]
+                leave[tmp[0]] = acc[i]
+        for i in range(clients):
+            for j in range(clients):
+                ieei[i] += leave[j] - null
+                leeo[i] += grand - include[j]
+            ieei[i] -= leave[i] - null
+            leeo[i] -= grand - include[i]
+        ie2i= ieei / (clients - 1) ** 2
+        le2o= leeo / (clients - 1) ** 2
+        for i in range(clients):
+            for j in range(clients):
+                if i==j:
+                    efieei[i,j]=0
+                    efleeo[i,j]=0
+                else:
+                    efieei[i,j]=(leave[i] - null)/ieei[j]
+                    efleeo[i,j]=(grand - include[i])/leeo[j]
+        logger_f(f"effect ieei: {efieei}","effects")
+        logger_f(f"effect leeo: {efleeo}","effects")
+        return [efieei,efleeo]
+        #return i1i, l1o, ieei, leeo, se, ee, ppce 
+
+def affine_trans_list(lst):
+    numbers=np.array(lst)
+    if np.min(numbers)<0:
+        tmp=numbers - np.min(numbers)
+        tmp_mean=np.mean(tmp)
+        trans=tmp/tmp_mean
+    elif np.min(numbers)==0 and np.max(numbers)==0:
+        trans=lst
+    else:
+        pos_mean=np.mean(lst)
+        trans=lst/pos_mean
+    return trans
 
 
 
@@ -168,30 +236,37 @@ def normalize_list(lst):
             
 ######box plot iterations
 
-def normalize_ppce(ppce):
+def affine_trans(ppce):
     tmp=[]
     for list_ in ppce:
-        tmp.append(normalize_list(list_))
+        tmp.append(affine_trans_list(list_))
     return tmp
 
 def least_squares_error(y_true, y_pred):
     return sum((yi - y_hat) ** 2 for yi, y_hat in zip(y_true, y_pred))
               
 
-def approx_quantities(sv,ppce):
+def approx_quantities(sv,ppce,path):
         """
         ratio mse:the mean square error between the ratios
         this compute the correlation coefic. (ratio mse, spearman) of sv with respect to the others ppce
         """
+        # path = pathlib.Path(path)
+        np_sv=np.array(sv)
         valores=[]
-        sv_norm=normalize_list(sv)
-        ppce_nor=normalize_ppce(ppce)
-        for value in ppce_nor:
-            rmse=least_squares_error(sv_norm, value)
-            spearman= sc.spearmanr(sv_norm, value)[0]
-            pearson=sc.pearsonr(sv_norm, value)[0]
-            kendall=sc.kendalltau(sv_norm, value)[0]
-            metricslogger.info(f"nlse: {rmse}, spearman: {spearman}, pearson: {pearson}, kendall:{kendall}")
+        sv_norm=affine_trans_list(sv)
+        ppce_nor=affine_trans(ppce)
+        for value in ppce:
+            rmse=least_squares_error(sv_norm, ppce_nor[ppce.index(value)])
+            np_value=np.array(value)
+            if np.all(np_sv == np_sv[0]) or np.all(np_value == np_value[0]):
+                spearman,pearson,kendall=0,0,0
+            else:
+                spearman= sc.spearmanr(sv, value)[0]
+                pearson=sc.pearsonr(sv, value)[0]
+                kendall=sc.kendalltau(sv, value)[0]
+            logger_f(f"nlse: {rmse}, spearman: {spearman}, pearson: {pearson}, kendall:{kendall}",path)
+            # metricslogger.info(f"nlse: {rmse}, spearman: {spearman}, pearson: {pearson}, kendall:{kendall}")
             valores.append([rmse,spearman,pearson,kendall])
         return valores
 
@@ -294,18 +369,48 @@ def plot_boxplot_with_stats(data, sco_names, path,title,name):
     plt.tight_layout()
     plt.savefig(f'{path}/{name}')
 
-# if __name__ == "__main__":
-#     values=[[0.31739766, 0.31783625700000007, 0.31739766100000005],
-#             [0.0, 0.00877192982456132, 0.0],
-#             [0.9526315789473685, 0.9526315789473685, 0.9526315789473683],[0.0, 0.0, 0.0],
-#             [0.4760964912280702, 0.47631578947368414, 0.4760964912280702]]
-#     names=["SV","L1O","I1I","LE2O","IE2I"]
-#     path='/Users/delio/Documents/Working projects/Balazs/table_latex'
-#     title="Contribution score for breast cancer data set"
-#     name="contr_scor_bcds"
-#     combine_plot(values, names, path,title, name)
+
+def cosine_similarity_models(model_client,model_server):
+    """
+    Compute the cosine similarity between the parameters of two PyTorch models.
+    """
+    params_a = torch.cat([p.view(-1) for p in model_client.parameters()])
+    params_b = torch.cat([p.view(-1) for p in model_server.parameters()])
+    
+    similarity = F.cosine_similarity(params_a.unsqueeze(0), params_b.unsqueeze(0))
+    
+    return similarity.item()
 
 
+def mean_columns_list(array):
+    """
+    Computes the mean across the first dimension (axis=0) of a NumPy array
+    and returns a list where each entry is a column from the mean array.
+
+    Args:
+        array (np.ndarray): Input NumPy array of any dimension.
+
+    Returns:
+        list: A list of 1D NumPy arrays, each representing a column from the mean result.
+    """
+    # Compute the mean along axis 0
+    mean_array = np.mean(array, axis=0)
+
+    # Convert the mean array's columns into a list of 1D arrays
+    columns = [mean_array[:, i] for i in range(mean_array.shape[1])]
+
+    return columns
 
 
-
+#if __name__ == "__main__":
+ #   list_=np.array([1.75,1.75,1.5])
+  #  list2=[0.13157894736842102, 0.0, -0.10526315789473684]
+   # affine1=affine_trans_list(list_)
+    #affine2=affine_trans_list(list2)
+    #lse=least_squares_error(affine1,affine2)
+    #lse2=least_squares_error(list_,list2)
+    #print(lse)
+    #print(lse2)
+    #print(affine1)
+    #print(affine2)
+    
