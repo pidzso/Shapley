@@ -363,11 +363,15 @@ def main(dict):
 
 if __name__ == "__main__":
     #format:[model, data_name, num_client, data_partition, alpha, global_iter, fed_iter, local_epochs, None]
-    #if you wanna see results comparing to the retraining game change None to "retraining"
-    dict_exper_breast={0:["LOGISTIC","BREAST",3,"IID",0.5,10,10,3,None],1:["LOGISTIC","BREAST",3,"IID",0.5,10,10,3,"ON"]}
-                       #,
-                   #1:["LOGISTIC","BREAST",3,"N-IID",0.5,10,10,1,retraining]}
-    dict_exper_brain={0:["CNN_brain","BRAIN",6,"N-IID",0.5,10,10,2,None]}
+    #if you wanna see results comparing to the retraining game change None in last entry to  "ON" (or something different than None)
     
-    main(dict_exper_breast)
+    #experiments dictionary for brain data set. List the experiment you wanna run on the dictionari following the format.
+    dict_exper_brain={
+        0:["CNN_brain","BRAIN",6,"N-IID",0.5,10,10,3,"ON"],
+        1:["CNN_brain","BRAIN",6,"IID",0.5,10,10,3,"ON"],
+        2:["CNN_brain","BRAIN",6,"N-IID",0.1,10,10,3,None],
+        3:["CNN_brain","BRAIN",6,"N-IID",1.0,10,10,3,None]
+                     }
+    
+    main(dict_exper_brain)
 
