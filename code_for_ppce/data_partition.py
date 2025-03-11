@@ -1,22 +1,24 @@
 import torch
-import os
 import numpy as np
 import torch.nn as nn
 import math
 import torchvision
 from torchvision import datasets, transforms
 from torchvision.transforms import ToTensor
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import random_split,DataLoader, Subset, TensorDataset,Dataset
 import random
 from collections import defaultdict
 import pathlib
-from torch.utils.data import random_split
-#from data_breast import commun_test_set
+import matplotlib.pyplot as plt
+from data_stroke import add_randomized_response_noise
 
-#path for mnist data set
-datamnist= os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/data/mnist/'
+
+np.random.seed(42)
+torch.manual_seed(42)
+
+
 #transform and path for brain data set
-source_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/data/brain/'
+source_dir= '/Users/delio/Documents/Working projects/Balazs/Experiments/Brain/archive'### path for brain data set
 source_dir = pathlib.Path(source_dir)
 #I have cifar10 in the local folder, so no need the path here. but in case place it here
 
@@ -29,16 +31,17 @@ transform_brain = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
+
 dataset = torchvision.datasets.ImageFolder(source_dir, transform=transform_brain)
 
 train_size = int(0.8 * len(dataset))  # 80% for training
-test_size = len(dataset) - train_size  # 20% for testing
+test_size = len(dataset) - train_size  # 20% for validation
 
 # Split dataset into training and validation
 train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 
 
-class set_to_dataset(dataset):
+class set_to_dataset(Dataset):
     def __init__(self, dataset, subset):
         self.dataset = dataset
         self.indices = subset.indices
@@ -49,6 +52,7 @@ class set_to_dataset(dataset):
     def __getitem__(self, idx):
         image, label = self.dataset[self.indices[idx]]
         return image, label
+
 
 train=set_to_dataset(dataset, train_dataset)
 
