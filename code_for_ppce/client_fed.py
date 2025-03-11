@@ -5,15 +5,12 @@ import numpy as np
 import torch.nn as nn
 import math
 from modelos import MLP,CNN,CNN_brain,LogisticRegressionModel
-#import sys
-#sys.path.append('/Users/delio/Documents/Working projects/Balazs/Experiments/MNIST')
-#from data_partition import data_for_client, commun_test_set
 from tqdm import tqdm
 from torchvision.transforms import ToTensor
 import random
-from data_breast import partition_data,commun_test_set
 import torch.optim as optim
-from data_partition import data_for_clients
+from data_breast import partition_data_stroke, commun_test_set_stroke
+from data_partition import data_for_clients_brain, commun_test_set_brain
 
 
 torch.cuda.is_available()
@@ -45,9 +42,9 @@ class Client:
             return cr1, op1 
         elif model_type == "CNN":
             return cr1, op1
-        elif model_type == "CNN_brain":
+        elif model_type == "CNN_brain" or "LOG_S":
             return cr1, op1
-        elif model_type == "LOGISTIC":
+        elif model_type == "LOG_B" :
             return nn.BCELoss(), optim.SGD(self.model.parameters(), lr=0.01)
         else:
             raise ValueError("Unsupported Criterion and Optimizer")
@@ -60,8 +57,10 @@ class Client:
             return CNN()
         elif model_type == "CNN_brain":
             return CNN_brain()
-        elif model_type == "LOGISTIC":
-            return LogisticRegressionModel()
+        elif model_type == "LOG_B":
+            return LogisticRegressionModel(input_dim=30)
+        elif model_type == "LOG_S":    
+            return LogisticRegressionModel(input_dim=10)
         else:
             raise ValueError("Unsupported model type")
 
@@ -80,7 +79,7 @@ class Client:
             for data, target in self.data_loader:
                 data, target = data.to(dev), target.to(dev)
                 self.optimizer.zero_grad()
-                if self.model_type=="LOGISTIC":
+                if self.model_type == "LOG_B" or "LOG_S":
                     output = self.model(data).squeeze(dim=1)
                 else:
                     output = self.model(data)
@@ -122,12 +121,12 @@ class Client:
         with torch.no_grad():
             for data, target in test_set:
                 data, target = data.to(dev), target.to(dev)
-                if self.model_type=="LOGISTIC":
+                if self.model_type == "LOG_B" or self.model_type =="LOG_S":
                     outputs = self.model(data).squeeze(dim=1)
                     predicted = (outputs >= 0.5).float()
                 else: 
                     outputs = self.model(data)
-                    _, predicted = torch.max(outputs, 1)
+                    _, predicted = torch.max(outputs, dim=1)
                 total += target.size(0)
                 correct += (predicted == target).sum().item()
                 i+=1
@@ -182,12 +181,16 @@ class federation:
             test_cifar=commun_test_set(data_cifar)
             return data_cifar, test_cifar
         elif dataset_name=="BRAIN":
-            data_brain =data_for_clients(data_name=dataset_name,num_clients=n_cli, alpha=self.alpha,partition_type=self.partition_type)
-            test_brain = commun_test_set(data_brain)
+            data_brain =data_for_clients_brain(data_name=dataset_name,num_clients=n_cli, alpha=self.alpha,partition_type=self.partition_type)
+            test_brain = commun_test_set_brain()
             return data_brain, test_brain
         elif dataset_name=="BREAST":
-            data=partition_data(num_clients=n_cli, alpha=self.alpha,partition_type=self.partition_type)
+            data=partition_data()#(num_clients=n_cli, alpha=self.alpha,partition_type=self.partition_type)
             test=commun_test_set(data)
+            return data, test
+        elif dataset_name=="STROKE":
+            data=partition_data_stroke(num_clients=n_cli, alpha=self.alpha, partition_type=self.partition_type)#(num_clients=n_cli, alpha=self.alpha,partition_type=self.partition_type)
+            test=commun_test_set_stroke()
             return data, test
         else:
             raise ValueError("Unsupported dataset")
@@ -201,8 +204,10 @@ class federation:
             return CNN()
         elif model_type == "CNN_brain":
             return CNN_brain()
-        elif model_type == "LOGISTIC":
-            return LogisticRegressionModel()
+        elif model_type == "LOG_B":
+            return LogisticRegressionModel(input_dim=30)
+        elif model_type == "LOG_S":    
+            return LogisticRegressionModel(input_dim=10)
         else:
             raise ValueError("Unsupported model type")
 
@@ -255,12 +260,12 @@ class federation:
         with torch.no_grad():
             for data, target in test_set:
                 data, target = data.to(dev), target.to(dev)
-                if self.model_type=="LOGISTIC":
+                if self.model_type== "LOG_B" or self.model_type=="LOG_S":
                     outputs = self.model(data).squeeze(dim=1)
                     predicted = (outputs >= 0.5).float()
                 else: 
                     outputs = self.model(data)
-                    _, predicted = torch.max(outputs, 1)
+                    _, predicted = torch.max(outputs, dim=1)
                 total += target.size(0)
                 correct += (predicted == target).sum().item()
                 i+=1
@@ -280,24 +285,26 @@ class federation:
             if hasattr(layer, 'reset_parameters'):
                 layer.reset_parameters()
 
-    def parameters(self):
-        self.model.parameters()
+    def parametros(self):
+        data=[param.data for param in self.model.parameters()]
+        return data
 
 
-#if __name__ == "__main__":
-    # data=data_for_clients("BRAIN",3,0.5,partition_type="IID")
-    # #data=dirichlet_partition(3, 0.5)
-    # cli=Client("CNN_brain",data[0])
+if __name__ == "__main__":
+    #data=partition_data_stroke(num_clients=3, alpha=7.0, local_test_size=0.2, partition_type='N-IID')
+    #data_for_clients("BRAIN",3,0.5,partition_type="IID")
+    #data=dirichlet_partition(3, 0.5)
+    # cli=Client("LOGISTIC",data[0])
     # cli.fit(1)
     # eval=cli.evaluation(cli.test)
     # print(eval)
-    #fed=federation("CNN_brain","BRAIN",3)
-    #clients=fed.lista_clientes
-    #fed.federated_averaging(1,1)
-    #eva_1=fed.evaluation_global(clients[1].test)
-    #eva_2=fed.evaluation_global(fed.test_global)
-    #print(eva_1)
-    #print(eva_2)
+    fed=federation("LOG_S","STROKE",3)
+    clients=fed.lista_clientes
+    fed.federated_averaging(10,[0,1,2],3)
+    eva_1=fed.evaluation_global(clients[1].test)
+    eva_2=fed.evaluation_global(fed.test_global)
+    print(eva_1)
+    print(eva_2)
 
 
 
