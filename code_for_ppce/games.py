@@ -13,8 +13,7 @@ from utils import plot_boxplot_with_stats
 import os
 import pathlib
 from modelos import CNN, CNN_brain, MLP, LogisticRegressionModel
-
-
+import argparse
 
 
 torch.cuda.is_available()
@@ -475,6 +474,16 @@ def main(dict):
 if __name__ == "__main__":
     # #format:[model, data_name, num_client, data_partition, alpha, global_iter, fed_iter, local_epochs, None]
     # #if you wanna see results comparing to the retraining game change None to "ON"
+
+    # Create an argument parser
+    parser = argparse.ArgumentParser(description="Parse command-line arguments example.")
+
+    # Add arguments
+    parser.add_argument("--num", type=int, default=0, help="Exp num")
+
+    # Parse the arguments
+    args = parser.parse_args()
+
     dict_exper={
         0:["CNN_brain","BRAIN",6,"IID",0.5,10,5,5,None], # This is for 5 fed. iterations
         1:["CNN_brain","BRAIN",6,"IID",0.5,10,15,5,None], # This is for 15 fed. iterations
@@ -483,9 +492,10 @@ if __name__ == "__main__":
         4:["CNN_brain","BRAIN",3,"IID",0.5,10,10,5,None], #This is for 3 clients
         5:["CNN_brain","BRAIN",9,"IID",0.5,10,10,5,None], #This is for 9 clients
         6:["CNN_brain","BRAIN",6,"IID",0.5,10,10,5,"ON"] #This is for the retraining game with IID distribution
-               }
-        
-    main(dict_exper) 
+    }
+
+    tmp = {args.num: dict_exper[args.num]}
+    main(tmp)
 
 #For every experiment we will obtain a folder with the values for all the metrics. This folders are store into the folder RESULTS/BRAIN.
 

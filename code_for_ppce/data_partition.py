@@ -38,7 +38,7 @@ test_size = len(dataset) - train_size  # 20% for testing
 train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 
 
-class set_to_dataset(Dataset):
+class set_to_dataset(dataset):
     def __init__(self, dataset, subset):
         self.dataset = dataset
         self.indices = subset.indices
