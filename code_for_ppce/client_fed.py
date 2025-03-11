@@ -9,7 +9,7 @@ from tqdm import tqdm
 from torchvision.transforms import ToTensor
 import random
 import torch.optim as optim
-from data_breast import partition_data_stroke, commun_test_set_stroke
+# from data_breast import partition_data_stroke, commun_test_set_stroke
 from data_partition import data_for_clients_brain, commun_test_set_brain
 
 
@@ -172,26 +172,10 @@ class federation:
 
 
     def load_dataset(self, dataset_name, n_cli):
-        if dataset_name == "MNIST":
-            data_mnist=data_for_clients(data_name=dataset_name,num_clients=n_cli, alpha=self.alpha,partition_type=self.partition_type)
-            test_mnist=commun_test_set(data_mnist)
-            return data_mnist, test_mnist
-        elif dataset_name == "CIFAR10":
-            data_cifar=data_for_clients(data_name=dataset_name,num_clients=n_cli, alpha=self.alpha,partition_type=self.partition_type)
-            test_cifar=commun_test_set(data_cifar)
-            return data_cifar, test_cifar
-        elif dataset_name=="BRAIN":
+        if dataset_name=="BRAIN":
             data_brain =data_for_clients_brain(data_name=dataset_name,num_clients=n_cli, alpha=self.alpha,partition_type=self.partition_type)
             test_brain = commun_test_set_brain()
             return data_brain, test_brain
-        elif dataset_name=="BREAST":
-            data=partition_data()#(num_clients=n_cli, alpha=self.alpha,partition_type=self.partition_type)
-            test=commun_test_set(data)
-            return data, test
-        elif dataset_name=="STROKE":
-            data=partition_data_stroke(num_clients=n_cli, alpha=self.alpha, partition_type=self.partition_type)#(num_clients=n_cli, alpha=self.alpha,partition_type=self.partition_type)
-            test=commun_test_set_stroke()
-            return data, test
         else:
             raise ValueError("Unsupported dataset")
         
@@ -308,9 +292,3 @@ if __name__ == "__main__":
 
 
 
-
-    # mlp = Client("MLP","MNIST",0)
-    # mlp.fit(10)
-    # test_set=mlp.testing_cli
-    # eva=mlp.evaluation(test_set)
-    # print(eva)
