@@ -136,9 +136,9 @@ class games(federation):
             leeo[i] -= grands[i] - include[i]
         ieei= ieei / (self.num_clients - 1) ** 2
         leeo= leeo / (self.num_clients - 1) ** 2
-        se = i1i + l1o
-        ee = ieei + leeo
-        ppce = se + ee
+        se = (i1i + l1o)/2
+        ee = (ieei + leeo)/2
+        ppce = (se + ee)/2
         logger_f(f"i1i: {i1i.tolist()}",f"{path}/values/ppce_local.log")
         logger_f(f"l10: {l1o.tolist()}",f"{path}/values/ppce_local.log")
         logger_f(f"ie2i: {ieei.tolist()}",f"{path}/values/ppce_local.log")
@@ -473,23 +473,21 @@ def main(dict):
 
 
 if __name__ == "__main__":
-
-
     # #format:[model, data_name, num_client, data_partition, alpha, global_iter, fed_iter, local_epochs, None]
-    # #if you wanna see results comparing to the retraining game change None to "retraining"
-    dict_exper_breast={0:["CNN_brain","BRAIN",6,"N-IID",0.5,10,10,5,None]
-                       }
-    #                    #,
-    #                #1:["LOGISTIC","BREAST",3,"N-IID",0.5,10,10,1,retraining]}
-    # dict_exper_brain={
-    #                   0:["CNN_brain","BRAIN",3,"IID",0.5,10,10,3,None], 
-    #                   1:["CNN_brain","BRAIN",9,"N-IID",0.5,10,10,3,None],
-    #                   2:["CNN_brain","BRAIN",9,"IID",0.5,10,10,3,None], 
-    #                   3:["CNN_brain","BRAIN",3,"N-IID",0.5,10,10,3,None],
-    #                   4:["CNN_brain","BRAIN",6,"N-IID",0.5,10,5,3,None]
-    #                   }
-    
-    main(dict_exper_breast) 
+    # #if you wanna see results comparing to the retraining game change None to "ON"
+    dict_exper={
+        0:["CNN_brain","BRAIN",6,"IID",0.5,10,5,5,None], # This is for 5 fed. iterations
+        1:["CNN_brain","BRAIN",6,"IID",0.5,10,15,5,None], # This is for 15 fed. iterations
+        2:["CNN_brain","BRAIN",6,"N-IID",0.1,10,10,5,None], #This is for alpha = 0.1
+        3:["CNN_brain","BRAIN",6,"N-IID",1.0,10,10,5,None], #This is for alpha = 1.0
+        4:["CNN_brain","BRAIN",3,"IID",0.5,10,10,5,None], #This is for 3 clients
+        5:["CNN_brain","BRAIN",9,"IID",0.5,10,10,5,None], #This is for 9 clients
+        6:["CNN_brain","BRAIN",6,"IID",0.5,10,10,5,"ON"] #This is for the retraining game with IID distribution
+               }
+        
+    main(dict_exper) 
+
+#For every experiment we will obtain a folder with the values for all the metrics. This folders are store into the folder RESULTS/BRAIN.
 
 
     
