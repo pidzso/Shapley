@@ -71,7 +71,7 @@ def combine_plot(groups=list, categories=list, path=str,title=str, name=str):
         plt.grid(axis='y', linestyle='--', alpha=0.7)  # Add a light grid for readability
 
         plt.savefig(f'{path}/{name}')
-
+        plt.close()
 
 def shapley(clients, groups, acc, path,retraining=None):
         '''
@@ -144,9 +144,9 @@ def pri_ce(clients, groups, acc, path):
             leeo[i] -= grand - include[i]
         ieei= ieei / (clients - 1) ** 2
         leeo= leeo / (clients - 1) ** 2
-        se = i1i + l1o
-        ee = ieei + leeo
-        ppce = se + ee
+        se = (i1i + l1o)/2
+        ee = (ieei + leeo)/2
+        ppce = (se + ee)/2
         logger_f(f"i1i: {i1i.tolist()}",f"{path}/values/ppce_global.log")
         logger_f(f"l10: {l1o.tolist()}",f"{path}/values/ppce_global.log")
         logger_f(f"ie2i: {ieei.tolist()}",f"{path}/values/ppce_global.log")
@@ -321,6 +321,7 @@ def plot_coeficits(groups=list,categories=list,path=str,title=str,name=str):
         plt.grid(axis='y', linestyle='--', alpha=0.7)  # Add a light grid for readability
 
         plt.savefig(f'{path}/{name}')
+        plt.close()
 
 
 
@@ -368,6 +369,7 @@ def plot_boxplot_with_stats(data, sco_names, path,title,name):
     # Show the plot
     plt.tight_layout()
     plt.savefig(f'{path}/{name}')
+    plt.close()
 
 
 def cosine_similarity_models(model_client,model_server):
@@ -403,14 +405,8 @@ def mean_columns_list(array):
 
 
 #if __name__ == "__main__":
- #   list_=np.array([1.75,1.75,1.5])
-  #  list2=[0.13157894736842102, 0.0, -0.10526315789473684]
-   # affine1=affine_trans_list(list_)
-    #affine2=affine_trans_list(list2)
-    #lse=least_squares_error(affine1,affine2)
-    #lse2=least_squares_error(list_,list2)
-    #print(lse)
-    #print(lse2)
-    #print(affine1)
-    #print(affine2)
     
+
+
+
+
