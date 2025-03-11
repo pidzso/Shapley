@@ -25,6 +25,10 @@ class CNN(nn.Module):
         x = self.fc2(x)
         return x
     
+    def set_parameters(self,params):
+        for model_parametro, param in zip(self.parameters(), params):
+            model_parametro.data = param
+    
 #Use this for brain data set
 class CNN_brain(nn.Module):
     def __init__(self, num_classes=4):
@@ -48,6 +52,10 @@ class CNN_brain(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.classifier(x)
         return x   
+    
+    def set_parameters(self,params):
+        for model_parametro, param in zip(self.parameters(), params):
+            model_parametro.data = param
 
 
         
@@ -84,12 +92,24 @@ class MLP(nn.Module):
         x = self.layers(x)
         return x
     
+    def set_parameters(self,params):
+        for model_parametro, param in zip(self.parameters(), params):
+            model_parametro.data = param
+    
 
 #This model is for the breast cancer data set 
 class LogisticRegressionModel(nn.Module):
     def __init__(self, input_dim=30):
         super(LogisticRegressionModel, self).__init__()
-        self.linear = nn.Linear(input_dim, 1)
+        self.linear_1 = nn.Linear(input_dim, 1)
+        #self.linear_2 = nn.Linear(2, 1)
         
     def forward(self, x):
-        return torch.sigmoid(self.linear(x))
+        #x=self.linear_1(x)
+        return torch.sigmoid(self.linear_1(x))
+    
+    def set_parameters(self,params):
+        for model_parametro, param in zip(self.parameters(), params):
+            model_parametro.data = param
+
+
