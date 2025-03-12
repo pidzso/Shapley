@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 import math
+import os
 import torchvision
 from torchvision import datasets, transforms
 from torchvision.transforms import ToTensor
@@ -10,17 +11,14 @@ import random
 from collections import defaultdict
 import pathlib
 import matplotlib.pyplot as plt
-from data_stroke import add_randomized_response_noise
+#from data_stroke import add_randomized_response_noise
 
 
 np.random.seed(42)
 torch.manual_seed(42)
 
-
-#transform and path for brain data set
-source_dir= '/Users/delio/Documents/Working projects/Balazs/Experiments/Brain/archive'### path for brain data set
+source_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/data/brain/'
 source_dir = pathlib.Path(source_dir)
-#I have cifar10 in the local folder, so no need the path here. but in case place it here
 
 ##transfor for brain data set
 transform_brain = transforms.Compose([
